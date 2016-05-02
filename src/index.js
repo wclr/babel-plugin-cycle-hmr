@@ -1,11 +1,16 @@
 import includeExclude from 'include-exclude'
 import * as t from 'babel-types'
+import path from 'path'
 
 const defaultWrapperName = 'hmrProxy'
 
 const getWrapperName = (importWrapper = defaultWrapperName) => {
   return '__' + importWrapper
 }
+
+const getRelativeName = (filename) =>
+  path.relative(process.cwd(), filename)
+    .split(path.sep).join('_').replace(/\..+$/, '')
 
 export const addImport =
   (node, importWrapper = defaultWrapperName, importFrom = 'cycle-hmr') => {
@@ -32,28 +37,34 @@ const addHotAccept = (node) => {
   node.body.unshift(statement);
 }
 
-const checkComments = function(test, comments, options){
+const findComments = function(test, comments, options){
   return comments.reduce((prev, {value}) =>
     prev || test.test(value), false
   )
 }
 
-const checkIncludeComments = () =>
+const findIncludeComment = (comments, options) =>
   checkComments(/@cycle-hmr/, comments, options)
 
-const checkExcludeComments = (comments, options) =>
+const findDebugComment = (comments, options) =>
+  checkComments(/@cycle-hmr-debug/, comments, options)
+
+
+const findExcludeComment = (comments, options) =>
   checkComments(/@no-cycle-hmr/, comments, options)
 
 
 export default function ({types: t}) {
 
-  const makeVisitor = (scope, options) => {
+  const makeVisitor = (scope, moduleIdName, options) => {
     const wrapIdentifier = t.identifier(getWrapperName(options.importWrapper))
     const wrap = (node, name) => {
       scope.__hasCycleHmr = true
       return t.callExpression(wrapIdentifier, [
-        node, t.binaryExpression('+', t.identifier('module.id'), t.stringLiteral('_' + name))
-      ])
+        node, t.binaryExpression('+',
+          t.identifier('module.id'), t.stringLiteral('_' + moduleIdName + '_' + name)
+        )
+      ].concat(options.proxy ? t.identifier(JSON.stringify(options.proxy)) : []))
     }
     const wrapAndReplace = (path, name) => {
       scope.__hasCycleHmr = true
@@ -158,27 +169,35 @@ export default function ({types: t}) {
     visitor: {
       Program (path, state) {
         const scope = path.context.scope
-        const options = this.opts
+        const options = {...this.opts}
         const filename = this.file.opts.filename
         
-        const filter = includeExclude(options);
+
         const hasFilter = options.include || options.exclude
         const comments = path.container.comments
-        if (!filter(filename)){
-          if (hasFilter){
-            if (!checkIncludeComments(comments, options)){
+        const hasIncludeComment = !findIncludeComment(comments, options)
+
+        if (hasFilter){
+          const passFilter = includeExclude(options)
+          if (passFilter(filename)){
+            if (findExcludeComment(comments, options)){
               return
             }
+          } else if (!hasIncludeComment){
+            return
           }
-          return 
-        }
-        
-        if (!hasFilter){
-          if (checkExcludeComments(comments, options)){
+        } else {
+          if (!hasIncludeComment){
             return
           }
         }
-        path.traverse(makeVisitor(scope, options))
+
+        if (!options.debug && hasInclude && findDebugComment(comments)){
+          options.debug = true
+        }
+
+        const moduleIdName = getRelativeName(filename)
+        path.traverse(makeVisitor(scope, moduleIdName, options))
       
         if (scope.__hasCycleHmr && options.import !== false){
           addImport(path.node, options.importWrapper, options.importFrom)
