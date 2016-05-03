@@ -44,25 +44,26 @@ const findComments = function(test, comments, options){
 }
 
 const findIncludeComment = (comments, options) =>
-  checkComments(/@cycle-hmr/, comments, options)
+
+  findComments(/@cycle-hmr/, comments, options)
 
 const findDebugComment = (comments, options) =>
-  checkComments(/@cycle-hmr-debug/, comments, options)
-
+  findComments(/@cycle-hmr-debug/, comments, options)
 
 const findExcludeComment = (comments, options) =>
-  checkComments(/@no-cycle-hmr/, comments, options)
+  findComments(/@no-cycle-hmr/, comments, options)
 
 
 export default function ({types: t}) {
 
   const makeVisitor = (scope, moduleIdName, options) => {
+    moduleIdName = moduleIdName ? moduleIdName + '_' : ''
     const wrapIdentifier = t.identifier(getWrapperName(options.importWrapper))
     const wrap = (node, name) => {
       scope.__hasCycleHmr = true
       return t.callExpression(wrapIdentifier, [
         node, t.binaryExpression('+',
-          t.identifier('module.id'), t.stringLiteral('_' + moduleIdName + '_' + name)
+          t.identifier('module.id'), t.stringLiteral('_' + moduleIdName + name)
         )
       ].concat(options.proxy ? t.identifier(JSON.stringify(options.proxy)) : []))
     }
@@ -169,13 +170,16 @@ export default function ({types: t}) {
     visitor: {
       Program (path, state) {
         const scope = path.context.scope
-        const options = {...this.opts}
+        const options = {
+          addModuleName: true,
+          ...this.opts
+        }
         const filename = this.file.opts.filename
         
 
         const hasFilter = options.include || options.exclude
         const comments = path.container.comments
-        const hasIncludeComment = !findIncludeComment(comments, options)
+        const hasIncludeComment = findIncludeComment(comments, options)
 
         if (hasFilter){
           const passFilter = includeExclude(options)
@@ -192,11 +196,11 @@ export default function ({types: t}) {
           }
         }
 
-        if (!options.debug && hasInclude && findDebugComment(comments)){
+        if (!options.debug && hasIncludeComment && findDebugComment(comments)){
           options.debug = true
         }
 
-        const moduleIdName = getRelativeName(filename)
+        const moduleIdName = options.addModuleName ? getRelativeName(filename) : ''
         path.traverse(makeVisitor(scope, moduleIdName, options))
       
         if (scope.__hasCycleHmr && options.import !== false){

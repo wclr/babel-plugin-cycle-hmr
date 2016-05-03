@@ -1,3 +1,4 @@
+### v0.1.1 Bug fix
 ### v0.1.0 Imports insertion and rxjs/most support 
     * imports of `Subject` object are added if not found
     * added initial most.js and rxjs5 support    

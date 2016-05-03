@@ -18,8 +18,9 @@ export const transformFixtures = (handler) => {
         babelrc: false,
         plugins: [
           [plugin, {
+            addModuleName: false,
             include: '**/fixtures/**',
-            exclude: '**/exclude/**',
+            exclude: '**/exclude*/**',
             lib: lib
           }]
         ]
@@ -30,7 +31,7 @@ export const transformFixtures = (handler) => {
       const actual = trim(transformFileSync(actualPath, options).code)
 
       const expected = fs.existsSync(expectedPath)
-        && trim(fs.readFileSync(expectedPath, 'utf-8'))
+          && trim(fs.readFileSync(expectedPath, 'utf-8'))
 
       handler && handler({caseName, actual, expected, expectedPath})
     })
