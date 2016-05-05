@@ -1,3 +1,7 @@
+### v0.2.0 
+    * added ability to plugin library specific version
+    * added handling of `global.noCycleHmr`
+    * added error handling in `hot.accept`
 ### v0.1.1 Bug fix
 ### v0.1.0 Imports insertion and rxjs/most support 
     * imports of `Subject` object are added if not found

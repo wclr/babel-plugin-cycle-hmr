@@ -1,5 +1,5 @@
-if (module.hot) module.hot.accept();
-import { hmrProxy as __hmrProxy } from 'cycle-hmr';
+if (module.hot && !global.noCycleHmr) module.hot.accept((err) => {err && console.error(`Can not accept module: ` + err.message)});
+import { hmrProxy as __hmrProxy } from 'cycle-hmr/rx';
 /* @cycle-hmr-debug */
 import { Observable } from 'rx';
 import { Imported } from 'Imporeted';

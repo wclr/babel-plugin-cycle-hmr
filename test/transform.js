@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { transformFileSync } from 'babel-core'
-import plugin from '../src'
+import plugin from '../rx'
 
 function trim(str) {
   return str.replace(/^\s+|\s+$/, '')

@@ -28,10 +28,10 @@ export const addImport =
 const addHotAccept = (node) => {
   const acceptCall = t.callExpression(
     t.memberExpression(t.identifier('module.hot'), t.identifier('accept')),
-    []
+    [t.identifier('(err) => {err && console.error(`Can not accept module: ` + err.message)}')]
   )
   const statement = t.ifStatement(
-    t.identifier('module.hot'),
+    t.identifier('module.hot && !global.noCycleHmr'),
     t.expressionStatement(acceptCall)
   )
   node.body.unshift(statement);
@@ -53,9 +53,7 @@ const findDebugComment = (comments, options) =>
 const findExcludeComment = (comments, options) =>
   findComments(/@no-cycle-hmr/, comments, options)
 
-
 export default function ({types: t}) {
-
   const makeVisitor = (scope, moduleIdName, options) => {
     moduleIdName = moduleIdName ? moduleIdName + '_' : ''
     const wrapIdentifier = t.identifier(getWrapperName(options.importWrapper))
