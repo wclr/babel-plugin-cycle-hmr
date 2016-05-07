@@ -12,7 +12,7 @@ const fixturesDir = path.join(__dirname, 'fixtures')
 export const transformFixtures = (handler) => {
   fs.readdirSync(fixturesDir)
     .filter(path => !/^_/.test(path))
-    //.filter(path => /default/.test(path))
+    //.filter(path => /from/.test(path))
     .map((caseName) => {
       var lib = caseName.split('-')[0]
       const options = {

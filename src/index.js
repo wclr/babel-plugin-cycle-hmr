@@ -144,6 +144,11 @@ export default function ({types: t}) {
       //    export {Y__hmr as Y}
       ExportSpecifier (path){
         if (path.__hmrWrapped) return
+        // skip:
+        //    export {X} from './X'
+        if (path.parentPath.node.source){
+          return
+        }
         const proxiedIdentifier = t.identifier(path.node.exported.name + '__hmr')
         const proxiedDeclaration = t.variableDeclaration('const', [
           t.variableDeclarator(

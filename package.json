@@ -1,6 +1,6 @@
 {
   "name": "babel-plugin-cycle-hmr",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Babel plugin for cycle.js hot module replacement (HMR).",
   "main": "lib/index.js",
   "keywords": [

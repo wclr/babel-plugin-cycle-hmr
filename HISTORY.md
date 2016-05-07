@@ -1,3 +1,5 @@
+### v0.2.2
+    * skip `export {...} from ...`
 ### v0.2.1
     * fix double proxying of named exports
     * split tests for separate cases
