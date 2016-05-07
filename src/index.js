@@ -57,11 +57,12 @@ export default function ({types: t}) {
   const makeVisitor = (scope, moduleIdName, options) => {
     moduleIdName = moduleIdName ? moduleIdName + '_' : ''
     const wrapIdentifier = t.identifier(getWrapperName(options.importWrapper))
-    const wrap = (node, name) => {
+
+    const wrap = (node, wrappedName) => {
       scope.__hasCycleHmr = true
       return t.callExpression(wrapIdentifier, [
         node, t.binaryExpression('+',
-          t.identifier('module.id'), t.stringLiteral('_' + moduleIdName + name)
+          t.identifier('module.id'), t.stringLiteral('_' + moduleIdName + wrappedName)
         )
       ].concat(options.proxy ? t.identifier(JSON.stringify(options.proxy)) : []))
     }
@@ -74,14 +75,11 @@ export default function ({types: t}) {
     const exportFunctionDeclaration = (path, isDefault) => {
       if (path.__hmrWrapped) return
       const declaration = path.node.declaration
-      const name = declaration.id.name
+      const name = declaration.id ? declaration.id.name : 'default__hmr'
       const proxiedIdentifier = t.identifier(name)
       const proxiedDeclaration = t.variableDeclaration('const', [
         t.variableDeclarator(
           proxiedIdentifier,
-          // wrap(t.functionExpression(null, declaration.params,
-          //   declaration.body,
-          //   declaration.generator, declaration.async), name)
           t.functionExpression(null, declaration.params,
             declaration.body,
             declaration.generator, declaration.async)
@@ -105,10 +103,30 @@ export default function ({types: t}) {
       }
     }
 
+    const detachNamedWrapAndReplace = (path, name) => {
+      let declarationPath = path.parentPath.parentPath
+      let exportPath = declarationPath.parentPath
+      exportPath.insertBefore(declarationPath.node)
+      exportPath.replaceWith(t.exportNamedDeclaration(
+        null, [
+          t.exportSpecifier(
+            //proxiedIdentifier,
+            t.identifier(name),
+            t.identifier(name)
+          )
+        ]
+      ))
+    }
+
     return {
+      // find:
+      //    export default ....
       ExportDefaultDeclaration (path) {
         if (path.__hmrWrapped) return
 
+        // filter (named) functions:
+        //    export default function () {...}
+        //    export default function X () {...}
         if (path.node.declaration.type === 'FunctionDeclaration'){
           exportFunctionDeclaration(path, true)
           return
@@ -119,6 +137,11 @@ export default function ({types: t}) {
         ))
         path.__hmrWrapped = true
       },
+      // find:
+      //    export {X as Y}
+      // turn to:
+      //    const Y__hmr = hmrProxy(X, id)
+      //    export {Y__hmr as Y}
       ExportSpecifier (path){
         if (path.__hmrWrapped) return
         const proxiedIdentifier = t.identifier(path.node.exported.name + '__hmr')
@@ -134,15 +157,28 @@ export default function ({types: t}) {
         path.replaceWith(t.exportSpecifier(proxiedIdentifier, path.node.exported))
         path.__hmrWrapped = true
       },
+      // find:
+      //    export const X = ....
       ExportNamedDeclaration (path) {
         if (path.__hmrWrapped) return
         const declarations = []
-        const doWrap = (path) => declarations.filter(d => d === path.parentPath.node)[0]
+        const doWrap = (path) => declarations
+            .filter(d => d === path.parentPath.node)[0]
+        // find:
+        //    export const X = (...) => ...
+        // or
+        //    export const X = function (....) { ...
+        // turn to
+        //    export const X = hmrProxy((...) => ..., id) ???
+        //    ----
+        //    const X = (...) => ...
+        //    export hmrProxy(X)
         let exportVisitors = {
           'FunctionExpression|ArrowFunctionExpression' (path) {
-            var dec = doWrap(path)
+            let dec = doWrap(path)
             if (dec){
-              wrapAndReplace(path, dec.id.name)
+              //wrapAndReplace(path, dec.id.name)
+              detachNamedWrapAndReplace(path, dec.id.name)
             }
           }
         }

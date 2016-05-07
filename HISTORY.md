@@ -1,3 +1,6 @@
+### v0.2.1
+    * fix double proxying of named exports
+    * split tests for separate cases
 ### v0.2.0 
     * added ability to plugin library specific version
     * added handling of `global.noCycleHmr`

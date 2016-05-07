@@ -11,7 +11,8 @@ const fixturesDir = path.join(__dirname, 'fixtures')
 
 export const transformFixtures = (handler) => {
   fs.readdirSync(fixturesDir)
-    //.filter(path => /es6/.test(path))
+    .filter(path => !/^_/.test(path))
+    //.filter(path => /default/.test(path))
     .map((caseName) => {
       var lib = caseName.split('-')[0]
       const options = {
@@ -19,6 +20,8 @@ export const transformFixtures = (handler) => {
         plugins: [
           [plugin, {
             addModuleName: false,
+            import: /import/.test(caseName),
+            accept: /accept/.test(caseName),
             include: '**/fixtures/**',
             exclude: '**/exclude*/**',
             lib: lib
@@ -28,7 +31,12 @@ export const transformFixtures = (handler) => {
       const fixtureDir = path.join(fixturesDir, caseName)
       const actualPath = path.join(fixtureDir, 'source.js')
       const expectedPath = path.join(fixtureDir, 'transformed.js')
-      const actual = trim(transformFileSync(actualPath, options).code)
+      let actual
+      try {
+        actual = trim(transformFileSync(actualPath, options).code)
+      } catch (e) {
+        console.error(e.message, e.stack)
+      }
 
       const expected = fs.existsSync(expectedPath)
           && trim(fs.readFileSync(expectedPath, 'utf-8'))

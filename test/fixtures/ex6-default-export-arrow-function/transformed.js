@@ -1,0 +1,1 @@
+export default __hmrProxy(a => {}, module.id + "_default");
