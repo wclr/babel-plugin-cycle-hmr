@@ -1,6 +1,6 @@
 const X = function () {};
 
-const X__hmr = __hmrProxy(X, module.id + "_X");
+const X__hmr = __hmrProxy(X, (typeof module === "object" ? module.id : "") + "_X", {});
 
 /* @cycle-hmr-debug */
 

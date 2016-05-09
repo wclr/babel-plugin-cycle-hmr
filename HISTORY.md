@@ -1,3 +1,5 @@
+### v0.3.0
+    * added `testExportName` - string regexp or function
 ### v0.2.2
     * skip `export {...} from ...`
 ### v0.2.1

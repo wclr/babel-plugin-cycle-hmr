@@ -12,18 +12,21 @@ const fixturesDir = path.join(__dirname, 'fixtures')
 export const transformFixtures = (handler) => {
   fs.readdirSync(fixturesDir)
     .filter(path => !/^_/.test(path))
-    //.filter(path => /from/.test(path))
+    //.filter(path => /test-export-name/.test(path))
     .map((caseName) => {
       var lib = caseName.split('-')[0]
       const options = {
         babelrc: false,
         plugins: [
           [plugin, {
-            addModuleName: false,
+            moduleIdName: /module-id-name/.test(caseName),
+            modulePath: /module-id-name/.test(caseName),
+            testExportName: /test-export-name/.test(caseName) ? '^[A-Z]/m' : false,
             import: /import/.test(caseName),
             accept: /accept/.test(caseName),
             include: '**/fixtures/**',
             exclude: '**/exclude*/**',
+            proxy: /proxy-options/.test(caseName) ? {debug: 'info'} : undefined,
             lib: lib
           }]
         ]

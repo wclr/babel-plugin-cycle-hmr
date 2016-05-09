@@ -1,1 +1,1 @@
-export default __hmrProxy(X, module.id + "_default");
+export default __hmrProxy(X, (typeof module === "object" ? module.id : "") + "_default", {});

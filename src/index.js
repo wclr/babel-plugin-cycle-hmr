@@ -8,9 +8,28 @@ const getWrapperName = (importWrapper = defaultWrapperName) => {
   return '__' + importWrapper
 }
 
-const getRelativeName = (filename) =>
-  path.relative(process.cwd(), filename)
-    .split(path.sep).join('_').replace(/\..+$/, '')
+const getRelativePath = (filename) =>
+  path.relative(process.cwd(), filename).replace(/\\/g, '/')
+
+const getRelativeName = (filename, keepExt) => {
+  const relName = getRelativePath(filename)
+    .split('/').join('_')
+  return keepExt ? relName : relName.replace(/\..+$/, '')
+}
+
+const processTestParam = (testParam, name) => {
+  if (typeof testParam === 'string'){
+    const split = testParam.split('/')
+    return new RegExp(split[0], split[1])
+  }
+  if (typeof testParam === 'function'){
+    return {test: testParam}
+  }
+  if (testParam && testParam.test !== 'function'){
+    throw new Error(`Illegal test param '${name}', should be RegExp or function`)
+  }
+  return testParam
+}
 
 export const addImport =
   (node, importWrapper = defaultWrapperName, importFrom = 'cycle-hmr') => {
@@ -31,7 +50,7 @@ const addHotAccept = (node) => {
     [t.identifier('(err) => {err && console.error(`Can not accept module: ` + err.message)}')]
   )
   const statement = t.ifStatement(
-    t.identifier('module.hot && !global.noCycleHmr'),
+    t.identifier('(typeof module === "object" && module.hot) && !(typeof global === "object" && global.noCycleHmr)'),
     t.expressionStatement(acceptCall)
   )
   node.body.unshift(statement);
@@ -54,20 +73,33 @@ const findExcludeComment = (comments, options) =>
   findComments(/@no-cycle-hmr/, comments, options)
 
 export default function ({types: t}) {
-  const makeVisitor = (scope, moduleIdName, options) => {
-    moduleIdName = moduleIdName ? moduleIdName + '_' : ''
+  const makeVisitor = (scope, options) => {
+    const moduleIdName = options.moduleIdName
+      ? options.moduleIdName + '_' : ''
     const wrapIdentifier = t.identifier(getWrapperName(options.importWrapper))
+    const testExportName = options.testExportName
+    const skipExportName = (name) => {
+      if (testExportName){
+        return !testExportName.test(name.toString())
+      }
+      return false
+    }
+
 
     const wrap = (node, wrappedName) => {
       scope.__hasCycleHmr = true
+      let proxyOptions = options.proxy
+      if (options.proxy.modulePath) {
+        proxyOptions = {...options.proxy, exportName: wrappedName}
+      }
+
       return t.callExpression(wrapIdentifier, [
         node, t.binaryExpression('+',
-          t.identifier('module.id'), t.stringLiteral('_' + moduleIdName + wrappedName)
+          t.identifier('(typeof module === "object" ? module.id : "")'), t.stringLiteral('_' + moduleIdName + wrappedName)
         )
-      ].concat(options.proxy ? t.identifier(JSON.stringify(options.proxy)) : []))
+      ].concat(t.identifier(JSON.stringify(proxyOptions))))
     }
     const wrapAndReplace = (path, name) => {
-      scope.__hasCycleHmr = true
       var wrapped = wrap(path.node, name)
       return path.replaceWith(wrapped)
     }
@@ -103,7 +135,8 @@ export default function ({types: t}) {
       }
     }
 
-    const detachNamedWrapAndReplace = (path, name) => {
+    const detachNamedExport = (path, name) => {
+      if (skipExportName(name)) return
       let declarationPath = path.parentPath.parentPath
       let exportPath = declarationPath.parentPath
       exportPath.insertBefore(declarationPath.node)
@@ -124,6 +157,8 @@ export default function ({types: t}) {
       ExportDefaultDeclaration (path) {
         if (path.__hmrWrapped) return
 
+        if (skipExportName('default')) return
+
         // filter (named) functions:
         //    export default function () {...}
         //    export default function X () {...}
@@ -135,6 +170,7 @@ export default function ({types: t}) {
         path.replaceWith(t.ExportDefaultDeclaration(
           wrap(path.node.declaration, 'default')
         ))
+
         path.__hmrWrapped = true
       },
       // find:
@@ -149,6 +185,7 @@ export default function ({types: t}) {
         if (path.parentPath.node.source){
           return
         }
+        if (skipExportName(path.node.exported.name)) return
         const proxiedIdentifier = t.identifier(path.node.exported.name + '__hmr')
         const proxiedDeclaration = t.variableDeclaration('const', [
           t.variableDeclarator(
@@ -183,7 +220,7 @@ export default function ({types: t}) {
             let dec = doWrap(path)
             if (dec){
               //wrapAndReplace(path, dec.id.name)
-              detachNamedWrapAndReplace(path, dec.id.name)
+              detachNamedExport(path, dec.id.name)
             }
           }
         }
@@ -210,11 +247,18 @@ export default function ({types: t}) {
       Program (path, state) {
         const scope = path.context.scope
         const options = {
-          addModuleName: true,
-          ...this.opts
+          testExportName: false,
+          moduleIdName: true,
+          moduleIdNameExt: false,
+          modulePath: true,
+          ...this.opts,
+          proxy: {}
         }
+
         const filename = this.file.opts.filename
-        
+
+        options.testExportName =
+          processTestParam(options.testExportName, 'testExportName')
 
         const hasFilter = options.include || options.exclude
         const comments = path.container.comments
@@ -239,8 +283,18 @@ export default function ({types: t}) {
           options.debug = true
         }
 
-        const moduleIdName = options.addModuleName ? getRelativeName(filename) : ''
-        path.traverse(makeVisitor(scope, moduleIdName, options))
+        if (options.moduleIdName){
+          options.moduleIdName = getRelativeName(filename, options.moduleIdNameExt)
+        }
+
+        if (options.modulePath){
+          options.proxy = {
+            modulePath: getRelativePath(filename),
+            ...options.proxy
+          }
+        }
+
+        path.traverse(makeVisitor(scope, options))
       
         if (scope.__hasCycleHmr && options.import !== false){
           addImport(path.node, options.importWrapper, options.importFrom)
