@@ -5,7 +5,7 @@ module.exports = function(lib) {
     return {
       visitor: {
         Program: function(){
-          this.opts.importFrom = 'cycle-hmr/rx'
+          this.opts.importFrom = 'cycle-hmr/' + lib
           visitor.Program.apply(this, arguments)
         }
       }

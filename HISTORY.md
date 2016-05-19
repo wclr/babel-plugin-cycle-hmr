@@ -1,3 +1,5 @@
+### v0.3.1
+    * fixed specific lib plugin attach
 ### v0.3.0
     * added `testExportName` - string regexp or function
 ### v0.2.2
