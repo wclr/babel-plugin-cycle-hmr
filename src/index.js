@@ -3,6 +3,7 @@ import * as t from 'babel-types'
 import path from 'path'
 
 const defaultWrapperName = 'hmrProxy'
+let warnedAboutInclude = false
 
 const getWrapperName = (importWrapper = defaultWrapperName) => {
   return '__' + importWrapper
@@ -88,8 +89,8 @@ export default function ({types: t}) {
 
     const wrap = (node, wrappedName) => {
       scope.__hasCycleHmr = true
-      let proxyOptions = options.proxy
-      if (options.proxy.modulePath) {
+      let proxyOptions = options.proxy || {}
+      if (proxyOptions.modulePath) {
         proxyOptions = {...options.proxy, exportName: wrappedName}
       }
 
@@ -251,8 +252,8 @@ export default function ({types: t}) {
           moduleIdName: true,
           moduleIdNameExt: false,
           modulePath: true,
-          ...this.opts,
-          proxy: {}
+          proxy: {},
+          ...this.opts
         }
 
         const filename = this.file.opts.filename
@@ -274,6 +275,14 @@ export default function ({types: t}) {
             return
           }
         } else {
+          if (!warnedAboutInclude
+            && options.include === undefined && options.exclude === undefined) {
+            console.warn('You are using \`cycle-hmr\` babel plugin ' +
+              'without include/exclude options, so no modules ' +
+              'except marked with /* @cycle-hmr */ comment will be processed.' +
+              ' You were warned.')
+            warnedAboutInclude = true
+          }
           if (!hasIncludeComment){
             return
           }

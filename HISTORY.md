@@ -1,3 +1,5 @@
+### v0.3.2
+    * fixed passing proxy options
 ### v0.3.1
     * fixed specific lib plugin attach
 ### v0.3.0
