@@ -1,3 +1,5 @@
+### v0.3.3
+    * fixed hot accept callback function
 ### v0.3.2
     * fixed passing proxy options
 ### v0.3.1

@@ -1,4 +1,4 @@
-if ((typeof module === "object" && module.hot) && !(typeof global === "object" && global.noCycleHmr)) module.hot.accept((err) => {err && console.error(`Can not accept module: ` + err.message)});
+if ((typeof module === "object" && module.hot) && !(typeof global === "object" && global.noCycleHmr)) module.hot.accept(function (err) {err && console.error(`Can not accept module: ` + err.message)});
 import { Observable } from 'rx';
 import { Imported } from 'Imporeted';
 
