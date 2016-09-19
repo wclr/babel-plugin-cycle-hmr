@@ -48,7 +48,7 @@ export const addImport =
 const addHotAccept = (node) => {
   const acceptCall = t.callExpression(
     t.memberExpression(t.identifier('module.hot'), t.identifier('accept')),
-    [t.identifier('function (err) {err && console.error(`Can not accept module: ` + err.message)}')]
+    [t.identifier('function (err) {err && console.error(`Can not accept module: `, err)}')]
   )
   const statement = t.ifStatement(
     t.identifier('(typeof module === "object" && module.hot) && !(typeof global === "object" && global.noCycleHmr)'),
@@ -304,7 +304,7 @@ export default function ({types: t}) {
         }
 
         path.traverse(makeVisitor(scope, options))
-      
+
         if (scope.__hasCycleHmr && options.import !== false){
           addImport(path.node, options.importWrapper, options.importFrom)
         }
